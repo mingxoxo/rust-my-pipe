@@ -1,15 +1,26 @@
 use std::process::Command;
+use std::env;
 
 fn main() {
-    println!("-- Rust로 ls -l 실행 --");
+    // 1. 인자 수집
+    let args: Vec<String> = env::args().collect();
+  
+    if args.len() < 2 {
+        eprintln!("usage: cargo run -- <command> [args...]");
+        std::process::exit(1);
+    }
 
-    let mut child = Command::new("ls")  // 실행 프로그램 이름
-            .arg("-l")                  // 인자
-            .spawn()                    // fork + exec
-            .expect("명령 실패");       // exec 실패 시
+    // 2. 명령어 구성
+    // &를 사용하여 인자를 빌려옴(복사 X)
+    let mut cmd = Command::new(&args[1]);
 
-    let ecode = child.wait()
-            .expect("자식 프로세스 기다리는 중 에러 발생");
+    // 슬라이스로 한번에 넣기
+    cmd.args(&args[2..]);
 
-    println!("-- 실행 종료 (Exit code: {}) --", ecode);
+    // 3. 실행 및 대기
+    let mut child = cmd.spawn().expect("명령 실행 실패");
+    let res = child.wait().expect("자식 프로세스 대기 실패");
+
+    println!("--- exec result ---");
+    println!("Exit code: {}", res);
 }
