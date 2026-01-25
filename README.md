@@ -30,3 +30,44 @@ C에서는 구조체를 초기화하고 함수에 포인터를 넘기는 방식�
 | `fork()` + `execve()` | `Command::spawn()` |
 | `waitpid()` | `Child::wait()` |
 | `int argc` check | `args.len()` |
+
+## 🗓 Week 2: Pipe Connection (cmd1 | cmd2)
+
+### 🎯 Goal
+- 두 개의 명령어를 실행하고 파이프(`|`)로 연결하기.
+- C언어의 `pipe()`, `dup2()`, `close()` 로직을 Rust의 소유권 모델로 재구현하기.
+- `split_whitespace`를 사용하여 공백이 포함된 명령어 문자열 파싱하기.
+
+### 📝 Key Concepts & Learnings
+
+#### 1. Piping in Rust (`Stdio`)
+C에서는 파일 디스크립터(`int fd[2]`)를 직접 관리해야 했지만, Rust는 `Stdio` 추상화를 사용함.
+- **cmd1:** `.stdout(Stdio::piped())`를 통해 쓰기 전용 파이프 생성.
+- **cmd2:** `.stdin(Stdio::from(child1_stdout))`를 통해 읽기 전용 파이프 연결.
+
+#### 2. Ownership & Resource Management
+Rust의 소유권 시스템 덕분에 `close()`를 직접 호출할 필요가 없음.
+- **`take()`:** `child1`의 `stdout` 소유권을 가져와서 `child2`에게 넘겨줌.
+- 소유권이 이동(`Move`)되면 이전 스코프에서는 접근할 수 없으므로, 실수로 파이프를 닫지 않는 문제(Hang)를 원천 차단함.
+
+#### 3. Execution Flow
+- `spawn()`을 호출하여 두 프로세스를 동시에 실행(Concurrency)하고, `wait()`를 통해 좀비 프로세스 방지 및 종료 코드 회수.
+
+### 🔄 C vs Rust Mapping
+| C Concept (`pipex`) | Rust Implementation | Note |
+|:---:|:---:|:---|
+| `pipe(fd)` | `Stdio::piped()` | `Command` 설정 시 내부적으로 파이프 생성 |
+| `dup2(fd[1], 1)` | `.stdout(Stdio::piped())` | 첫 번째 명령어의 출력을 파이프로 설정 |
+| `dup2(fd[0], 0)` | `.stdin(Stdio::from(...))` | 두 번째 명령어의 입력을 첫 번째의 출력으로 설정 |
+| `close(fd)` | `take()` / `Drop` | 소유권 이동 및 스코프 종료 시 자동 해제 |
+| `ft_split` | `split_whitespace()` | 문자열 파싱 |
+
+### 🛠 Usage
+```bash
+# Run with pipe
+cargo run -- "ls -al" "wc -l"
+
+# Result
+# --- Pipe: "ls -al" | "wc -l" ---
+# (Output of ls | wc)
+# --- 실행 종료 (Exit Code: 0) ---
