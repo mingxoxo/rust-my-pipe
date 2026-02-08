@@ -71,6 +71,7 @@ cargo run -- "ls -al" "wc -l"
 # --- Pipe: "ls -al" | "wc -l" ---
 # (Output of ls | wc)
 # --- 실행 종료 (Exit Code: 0) ---
+```
 
 ## 🗓 Week 3: File Redirection & Error Handling
 
@@ -113,3 +114,4 @@ cargo run -- infile.txt "grep Rust" "wc -l" outfile.txt
 # Check result
 cat outfile.txt
 # Output: 1
+```
