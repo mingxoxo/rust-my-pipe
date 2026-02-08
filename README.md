@@ -71,3 +71,45 @@ cargo run -- "ls -al" "wc -l"
 # --- Pipe: "ls -al" | "wc -l" ---
 # (Output of ls | wc)
 # --- 실행 종료 (Exit Code: 0) ---
+
+## 🗓 Week 3: File Redirection & Error Handling
+
+### 🎯 Goal
+- 파일 입출력을 프로세스의 표준 입출력으로 연결하기 (`Redirection`).
+- 완성된 파이프라인 구조: `< infile cmd1 | cmd2 > outfile` 구현.
+- `Result` 타입과 `?` 연산자를 사용하여 Rust다운 에러 처리 적용.
+
+### 📝 Key Concepts & Learnings
+
+#### 1. File Redirection (`Stdio::from`)
+C언어의 복잡한 `open` + `dup2` + `close` 과정을 Rust의 객체 소유권 이동으로 단순화함.
+- **Input:** `File::open()`으로 파일을 열고, `.stdin(Stdio::from(infile))`로 연결.
+- **Output:** `File::create()`로 파일을 생성하고, `.stdout(Stdio::from(outfile))`로 연결.
+- `Stdio::from()`이 파일 객체의 소유권을 가져가므로, 별도의 `close()` 호출이 필요 없음 (RAII).
+
+#### 2. Error Propagation (`?` Operator)
+`panic!`으로 프로그램을 강제 종료하는 대신, 에러를 호출자에게 전파하여 우아하게 종료함.
+- **`Result<(), Box<dyn Error>>`**: 다양한 종류의 에러(`io::Error`, 등)를 하나의 `Box`(Trait Object)에 담아 처리.
+- **`?` 연산자**: 에러 발생 시 즉시 함수를 리턴하고, 성공 시 값을 벗겨냄(`unwrap` 대체).
+
+### 🔄 C vs Rust Mapping
+| Feature | C (`pipex`) | Rust Implementation |
+|:---:|:---:|:---|
+| **Open Read** | `open("in", O_RDONLY)` | `File::open("in")` |
+| **Open Write** | `open("out", O_CREAT \| O_TRUNC..)` | `File::create("out")` |
+| **Redirect** | `dup2(fd, STDIN_FILENO)` | `.stdin(Stdio::from(file))` |
+| **Error Check** | `if (ret < 0) return -1;` | `Result` + `?` operator |
+| **Cleanup** | `close(fd);` | `Drop` (자동 해제) |
+
+### 🛠 Usage
+```bash
+# Prepare input file
+echo "Rust is safe" > infile.txt
+echo "C is powerful" >> infile.txt
+
+# Run pipex logic: grep "Rust" | wc -l
+cargo run -- infile.txt "grep Rust" "wc -l" outfile.txt
+
+# Check result
+cat outfile.txt
+# Output: 1
